@@ -1,0 +1,23 @@
+<mat-form-field appearance="fill" style="width: 45%;"> 
+  <mat-chip-grid #chipGridC aria-label="Cliente seleccionado">
+    <mat-chip-row *ngFor="let cliente of selectedClientes" (removed)="removeCliente(cliente)">
+      <span [title]="cliente">{{ truncateName(cliente) }}</span>
+      <button matChipRemove *ngIf="cliente">✕</button>
+    </mat-chip-row>
+    <input
+      placeholder="Cliente"
+      [matChipInputFor]="chipGridC"
+      [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
+      [matChipInputAddOnBlur]="false"   
+      [matAutocomplete]="autoC"
+      [formControl]="clienteCtrl"
+      (input)="onClienteInput($event)"
+    />
+  </mat-chip-grid>
+  <mat-autocomplete #autoC="matAutocomplete" (optionSelected)="selectCliente($event)">
+    <mat-option *ngFor="let cliente of filteredClientes | async" [value]="cliente"  [class.selected]="selectedClientes.includes(cliente)">
+      {{ cliente }}
+    </mat-option>
+  </mat-autocomplete>
+  <mat-error *ngIf="opcionCliente.hasError('required')">Seleccione una opción</mat-error>
+</mat-form-field>  
