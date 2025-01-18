@@ -15,21 +15,25 @@ import { MatTableModule } from '@angular/material/table';
 import { BrowserModule } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component'; 
+import { HttpClientModule } from '@angular/common/http';
+import { CapitalizePipe } from './capitalize.pipe';
 
 @NgModule({
  declarations: [
-   AppComponent
+   AppComponent,
+   CapitalizePipe
  ],
  imports: [
-   BrowserModule,
+   BrowserModule, HttpClientModule,
    AppRoutingModule,
    MatCardModule, MatTableModule, MatPaginatorModule, MatIconModule, CommonModule,
    ReactiveFormsModule, MatButtonModule, MatInputModule, 
    MatFormFieldModule, MatSelectModule, MatChipsModule, MatAutocompleteModule,
-   MatRippleModule, FormsModule, MatFormFieldModule, MatDatepickerModule, MatNativeDateModule
+   MatRippleModule, FormsModule, MatFormFieldModule, MatDatepickerModule, MatNativeDateModule, BrowserAnimationsModule
  ],
  providers: [],
  bootstrap: [AppComponent]

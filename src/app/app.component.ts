@@ -1,21 +1,20 @@
-import { Component } from '@angular/core';
+import { AfterViewInit, Component, OnInit } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { MatTableDataSource } from '@angular/material/table';
-import { Observable, startWith, map } from 'rxjs'; 
+import { Observable, startWith, map, forkJoin } from 'rxjs'; 
 import { ENTER, COMMA } from '@angular/cdk/keycodes';
+import { PokemonService } from './pokemon.service';
+import { MatPaginator } from '@angular/material/paginator'; 
+import { ViewChild } from '@angular/core';
 
-export interface PeriodicElement {
+export interface PeriodicElement { 
   id: number;
-  folio: string;
+  pokedex: number;
+  image: string; // official-artwork
+  type: string[];
   name: string;
-  ubication: string;
-  startDate: string; 
-  applicatorTechnician: string;
-  status: string;
-  download?: boolean;
-  tecnico_hora_llegada: string;
-  tecnico_hora_salida: string;
-  servicio: string;
+  height: number;
+  weight: number; 
 }
 
 var ELEMENT_DATA: PeriodicElement[] = []
@@ -25,116 +24,163 @@ var ELEMENT_DATA: PeriodicElement[] = []
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
-export class AppComponent {
+export class AppComponent  implements OnInit, AfterViewInit{
   separatorKeysCodes: number[] = [ENTER, COMMA];
-  clientesList: string[] = []; 
-  filteredClientes!: Observable<string[]>;
-  selectedClientes: string[] = [];
-  allClientes: string[] = [];
-  clienteCtrl = new FormControl('');
-  opcionCliente = new FormControl<string[]>([]);  
+  pokemonsList: string[] = []; 
+  filteredPokemons!: Observable<string[]>;
+  selectedPokemons: string[] = [];
+  allPokemons: string[] = [];
+  pokemonCtrl = new FormControl('');
+  opcionPokemon = new FormControl<string[]>([]);  
   dataSource = new MatTableDataSource<PeriodicElement>(ELEMENT_DATA); 
   selectedClient: string = '';
-  
+  displayedColumns: string[] = ['pokedex', 'image', 'type', 'name', 'height', 'weight' ];
+
+  @ViewChild(MatPaginator) paginator!: MatPaginator;
+
+  constructor(private pokemonService: PokemonService){}
+
   ngOnInit(): void {     
     this.obtenerListaAsignaciones() 
-    this.filteredClientes = this.clienteCtrl.valueChanges.pipe(
+    this.filteredPokemons = this.pokemonCtrl.valueChanges.pipe(
       startWith(''),
-      map(value => this._filterCliente(value || ''))
+      map(value => this._filterPokemon(value || ''))
     );  
   } 
 
+  ngAfterViewInit() {
+    this.dataSource.paginator = this.paginator;
+  }
+
   limpiarFiltros(): void {
-    this.selectedClientes = []; 
+    this.selectedPokemons = []; 
   
-    this.clienteCtrl.reset();  
+    this.pokemonCtrl.reset();  
 
     this.applyFilter(); 
   }
 
   obtenerListaAsignaciones() { 
     ELEMENT_DATA = [];
-    for (let index = 0; index < 4; index++) {
-      // push
-      this.clientesList.push('5');
+    this.pokemonService.getPokemonList().subscribe({
+      next: (response: any) => { 
+        const results = response.results;  
+        
+        const requests = results.map((pokemon: any) => 
+          this.pokemonService.getPokemonDetails(pokemon.url)  
+        );
 
-    }
-    this.clientesList = [...new Set(this.clientesList)];
-    this.setListaCliente(this.clientesList); 
-    this.clienteCtrl.setValue(''); 
-    this.dataSource = new MatTableDataSource(ELEMENT_DATA);
 
+
+        // Ejecutar todas las solicitudes concurrentemente
+        forkJoin<any[]>(requests).subscribe({
+          next: (details: any[]) => { 
+            ELEMENT_DATA = details.map((detail, index) => ({ 
+              id: index + 1, // Incremental
+              pokedex: detail.order, // Número en la Pokédex
+              image: detail.sprites.other['official-artwork']?.front_default || '', // Imagen del Pokémon
+              type: detail.types.map((t: any) => t.type.name).join(', '), // Tipos del Pokémon
+              name: detail.name, // Nombre
+              height: detail.height,  // Altura
+              weight: detail.weight,  // Peso
+            }));
+
+            this.dataSource = new MatTableDataSource(ELEMENT_DATA);
+            this.dataSource.paginator = this.paginator;
+
+            // Llenar la lista de nombres de Pokémon
+            this.pokemonsList = details.map((detail) => detail.name); 
+            this.setListaPokemon(this.pokemonsList);
+            this.pokemonCtrl.setValue('');
+          },
+          error: (error: any) => {
+            console.error('Error al obtener los detalles de los Pokémon:', error);
+          }
+        });  
+
+        // for (let index = 0; index < results.length; index++) {
+        //   this.pokemonsList.push(results[index].name)
+        // }
+        // console.log(this.pokemonsList)
+        // this.pokemonsList = [...new Set(this.pokemonsList)];
+        // this.setListaPokemon(this.pokemonsList); 
+        // this.pokemonCtrl.setValue('');  
+      },
+      error: (error) => {
+        console.error('Error al obtener los datos de la API:', error);
+      }
+    }); 
   }
 
-  setListaCliente(clienteList: string[]) {  
-    this.allClientes = clienteList || []
+  setListaPokemon(pokemonList: string[]) {  
+    this.allPokemons = pokemonList || []
   }
 
-  private _filterCliente(value: string): string[] {
+  private _filterPokemon(value: string): string[] {
     const filterValue = value.toLowerCase(); 
-    return this.clientesList.filter(cliente => 
-      cliente.toLowerCase().includes(filterValue) && 
-      !this.selectedClientes.includes(cliente)  
+    return this.pokemonsList.filter(pokemon => 
+      pokemon.toLowerCase().includes(filterValue) && 
+      !this.selectedPokemons.includes(pokemon)  
     );
   }
 
-  selectCliente(event: any): void {
-    const cliente = event.option.value;
-    if (!this.selectedClientes.includes(cliente)) {
-      this.selectedClientes.push(cliente);
-      this.opcionCliente.setValue(this.selectedClientes);  
-      this.clienteCtrl.setValue('');  
+  selectPokemon(event: any): void {
+    const pokemon = event.option.value;
+    if (!this.selectedPokemons.includes(pokemon)) {
+      this.selectedPokemons.push(pokemon);
+      this.opcionPokemon.setValue(this.selectedPokemons);  
+      this.pokemonCtrl.setValue('');  
     } 
     this.applyFilter();
   }
 
-  addCliente(event: any): void {
+  addPokemon(event: any): void {
     const value = (event.value || '').trim();
-    this.filteredClientes.subscribe((Clientes) => { 
-      if (Clientes.includes(value) && !this.selectedClientes.includes(value)) {
-        this.selectedClientes.push(value);
-        this.opcionCliente.setValue(this.selectedClientes); 
+    this.filteredPokemons.subscribe((Pokemons) => { 
+      if (Pokemons.includes(value) && !this.selectedPokemons.includes(value)) {
+        this.selectedPokemons.push(value);
+        this.opcionPokemon.setValue(this.selectedPokemons); 
       } 
    
       event.chipInput!.clear();
-      this.clienteCtrl.setValue('');  
-      this.clearInputCliente();
+      this.pokemonCtrl.setValue('');  
+      this.clearInputPokemon();
     });
   }
 
-  removeCliente(cliente: string): void {
-    const index = this.selectedClientes.indexOf(cliente);
+  removePokemon(pokemon: string): void {
+    const index = this.selectedPokemons.indexOf(pokemon);
     if (index >= 0) {
-      this.selectedClientes.splice(index, 1);
-      this.opcionCliente.setValue(this.selectedClientes);
-      this.clienteCtrl.setValue('')
+      this.selectedPokemons.splice(index, 1);
+      this.opcionPokemon.setValue(this.selectedPokemons);
+      this.pokemonCtrl.setValue('')
     }
     this.applyFilter();
   } 
 
-  onClienteInput(event: any): void {
+  onPokemonInput(event: any): void {
     const filterValue = event.target.value.toLowerCase(); 
-    this.filteredClientes = this.filterClientes(filterValue); // Filtra por lo que escribe el usuario 
+    this.filteredPokemons = this.filterPokemons(filterValue); // Filtra por lo que escribe el usuario 
     this.dataSource.filterPredicate = (data: PeriodicElement, filter: string) => { 
-      const clienteMatch = data.name.toLowerCase().includes(filter);
-      return clienteMatch;   
+      const pokemonMatch = data.name.toLowerCase().includes(filter);
+      return pokemonMatch;   
     };
     
     this.dataSource.filter = filterValue;  }
 
-  filterClientes(filterValue: string): Observable<string[]> {
+  filterPokemons(filterValue: string): Observable<string[]> {
     return new Observable(observer => {
       if (filterValue) {
-        observer.next(this.allClientes.filter(cliente => cliente.toLowerCase().includes(filterValue)));
+        observer.next(this.allPokemons.filter(pokemon => pokemon.toLowerCase().includes(filterValue)));
       } else {
-        observer.next(this.allClientes);
+        observer.next(this.allPokemons);
       }
     });
   }
 
-  clearInputCliente() { 
-    this.clienteCtrl.setValue('');  
-    this.opcionCliente.setValue(this.selectedClientes);
+  clearInputPokemon() { 
+    this.pokemonCtrl.setValue('');  
+    this.opcionPokemon.setValue(this.selectedPokemons);
   }
 
   truncateName(name: string): string {
@@ -147,16 +193,17 @@ export class AppComponent {
 
   applyFilter() { 
     this.dataSource.filterPredicate = (data: PeriodicElement, filter: string) => { 
-      const clienteMatch = this.selectedClientes.length === 0 || this.selectedClientes.some(cliente =>
-        data.name.toLowerCase().includes(cliente.toLowerCase())
+      const pokemonMatch = this.selectedPokemons.length === 0 || this.selectedPokemons.some(pokemon =>
+        data.name.toLowerCase().includes(pokemon.toLowerCase())
       ); 
       
-      // Permitir coincidencias parciales en el filtro de cliente (insensible a mayúsculas)
+      // Permitir coincidencias parciales en el filtro de pokemon (insensible a mayúsculas)
       const clientMatch = this.selectedClient === '' || data.name.toLowerCase().includes(this.selectedClient.toLowerCase());
       
-      return clienteMatch;
+      return pokemonMatch;
     };
   
     this.dataSource.filter = Math.random().toString(); // Forzar el filtrado
   }
-}
+} 
+

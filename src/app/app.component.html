@@ -1,23 +1,60 @@
 <mat-form-field appearance="fill" style="width: 45%;"> 
-  <mat-chip-grid #chipGridC aria-label="Cliente seleccionado">
-    <mat-chip-row *ngFor="let cliente of selectedClientes" (removed)="removeCliente(cliente)">
-      <span [title]="cliente">{{ truncateName(cliente) }}</span>
-      <button matChipRemove *ngIf="cliente">✕</button>
+  <mat-chip-grid #chipGridC aria-label="Pokemon seleccionado">
+    <mat-chip-row *ngFor="let pokemon of selectedPokemons" (removed)="removePokemon(pokemon)">
+      <span [title]="pokemon">{{ truncateName(pokemon) }}</span>
+      <button matChipRemove *ngIf="pokemon">✕</button>
     </mat-chip-row>
     <input
-      placeholder="Cliente"
+      placeholder="Search Pokemon"
       [matChipInputFor]="chipGridC"
       [matChipInputSeparatorKeyCodes]="separatorKeysCodes"
       [matChipInputAddOnBlur]="false"   
       [matAutocomplete]="autoC"
-      [formControl]="clienteCtrl"
-      (input)="onClienteInput($event)"
+      [formControl]="pokemonCtrl"
+      (input)="onPokemonInput($event)"
     />
   </mat-chip-grid>
-  <mat-autocomplete #autoC="matAutocomplete" (optionSelected)="selectCliente($event)">
-    <mat-option *ngFor="let cliente of filteredClientes | async" [value]="cliente"  [class.selected]="selectedClientes.includes(cliente)">
-      {{ cliente }}
+  <mat-autocomplete #autoC="matAutocomplete" (optionSelected)="selectPokemon($event)">
+    <mat-option *ngFor="let pokemon of filteredPokemons | async" [value]="pokemon"  [class.selected]="selectedPokemons.includes(pokemon)">
+      {{ pokemon }}
     </mat-option>
   </mat-autocomplete>
-  <mat-error *ngIf="opcionCliente.hasError('required')">Seleccione una opción</mat-error>
+  <mat-error *ngIf="opcionPokemon.hasError('required')">Seleccione una opción</mat-error>
 </mat-form-field>  
+
+<div class="mat-elevation-z8">
+  <table mat-table [dataSource]="dataSource"> 
+
+    <ng-container matColumnDef="pokedex">
+      <th mat-header-cell *matHeaderCellDef> Pokedex N°</th>
+      <td mat-cell *matCellDef="let element"> {{element.pokedex}} </td>
+    </ng-container>  
+    <ng-container matColumnDef="image">
+      <th mat-header-cell *matHeaderCellDef> image </th>
+      <td mat-cell *matCellDef="let element"> 
+        <img src="{{element.image}}" alt=""> 
+      </td>
+    </ng-container>  
+    <ng-container matColumnDef="type">
+      <th mat-header-cell *matHeaderCellDef> Type </th>
+      <td mat-cell *matCellDef="let element"> {{element.type}} </td>
+    </ng-container>  
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef> Name </th>
+      <td mat-cell *matCellDef="let element"> {{ element.name | capitalize }} </td>
+    </ng-container>  
+    <ng-container matColumnDef="height">
+      <th mat-header-cell *matHeaderCellDef> Height </th>
+      <td mat-cell *matCellDef="let element"> {{element.height}} </td>
+    </ng-container>  
+    <ng-container matColumnDef="weight">
+      <th mat-header-cell *matHeaderCellDef> Weight </th>
+      <td mat-cell *matCellDef="let element"> {{element.weight}} </td>
+    </ng-container>   
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr> 
+  </table>
+
+  <mat-paginator [pageSize]="10" [pageSizeOptions]="[5, 10, 25, 50]" showFirstLastButtons></mat-paginator>
+</div>
